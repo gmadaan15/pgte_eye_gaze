@@ -5,7 +5,7 @@ Code adaptation of the PGTE paper([link](http://jcse.kiise.org/files/V17N2-01.pd
 Download the datasets and note down their absolute or relative paths: [MPIIFaceGaze](https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) [GazeCapture](https://gazecapture.csail.mit.edu/download.php)
 
 Run the below commands to set up python environment:
-
+`bash grab_prerequisites.bash`
 *bash grab_prerequisites.bash*
 
 the bash file will download supplementary h5 dataset files for the datasets that contain face features in 3d and face rotation matrix.
