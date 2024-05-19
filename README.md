@@ -13,7 +13,7 @@ For preprocessing run the "create_hdf_files_for_pgte.py" file. This will create 
 
 `python create_hdf_files_for_pgte.py`
 
-
+# Running the training loop
 For running the training code, run the train_eval.py file. This will train a gaze model and calibration model per person or subject. Kindly look in the file main code to change the hyper parameters.
 
 `python train_eval.py`
