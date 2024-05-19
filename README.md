@@ -6,15 +6,14 @@ Download the datasets and note down their absolute or relative paths: [MPIIFaceG
 
 Run the below commands to set up python environment:
 `bash grab_prerequisites.bash`
-*bash grab_prerequisites.bash*
 
 the bash file will download supplementary h5 dataset files for the datasets that contain face features in 3d and face rotation matrix.
 
 For preprocessing run the "create_hdf_files_for_pgte.py" file. This will create a new h5 dataset that is compatible with our model. This will contain necessary: face, right eye, flipped face and flipped eye images and other features mentioned in the paper. Kindly don't forget to modify dataset paths in the file before running.
 
-*python create_hdf_files_for_pgte.py*
+`python create_hdf_files_for_pgte.py`
 
 
 For running the training code, run the train_eval.py file. This will train a gaze model and calibration model per person or subject. Kindly look in the file main code to change the hyper parameters.
 
-*python train_eval.py*
+`python train_eval.py`
