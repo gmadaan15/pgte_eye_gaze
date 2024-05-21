@@ -58,8 +58,8 @@ class GazeModel(nn.Module):
         # need to store for calibration
         if store_queries == True:
             # lets store the queries for calibration model
-            self.queries = torch.cat((self.queries, query.detach()), axis=0)
-            self.pref_vecs = torch.cat((self.pref_vecs, pref_vector.detach()), axis=0)
+            self.queries = torch.cat((self.queries, query.detach().cpu()), axis=0)
+            self.pref_vecs = torch.cat((self.pref_vecs, pref_vector.detach().cpu()), axis=0)
 
         x = torch.cat((temp, pref_vector), axis=1)
         # used to solve the inplace modification error, reference: https://discuss.pytorch.org/t/runtimeerror-one-of-the-variables-needed-for-gradient-computation-has-been-modified-by-an-inplace-operation-torch-floattensor-64-1-which-is-output-0-of-asstridedbackward0-is-at-version-3-expected-version-2-instead-hint-the-backtrace-further-a/171826/7
