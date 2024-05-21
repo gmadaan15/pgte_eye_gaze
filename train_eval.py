@@ -402,7 +402,7 @@ if __name__ == '__main__':
     # dataset hdf files, grabcapture file can also be added
     hdf_files = ["/content/drive/MyDrive/outputs_pgte/MPIIGaze1.h5"]
 
-    k_folds = 2
+    k_folds = 5
     for file in hdf_files:
         with h5py.File(file, 'r') as f:
             subject_id = 0
