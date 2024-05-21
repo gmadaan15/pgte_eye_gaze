@@ -24,7 +24,8 @@ def reset_weights(m):
 
 def to_device(entry):
     for key, val in entry.items():
-        entry[key].to(device)
+        entry[key] = entry[key].to(device)
+    
 
 def train_epoch(gaze_model: torch.nn.Module,
                 subject_wise_embedding: torch.nn.Module,
@@ -47,8 +48,10 @@ def train_epoch(gaze_model: torch.nn.Module,
     current_subject_embedding_loss = 0.0
 
     # Training with cosine decay schedule
-    for i, data in enumerate(tqdm(trainloader), 0):
+    for i, data in enumerate(trainloader, 0):
+        #print(data)
         to_device(data)
+        #print(data)
         gts = data["gaze"].to(device)
 
         # Zero the gradients
@@ -58,12 +61,15 @@ def train_epoch(gaze_model: torch.nn.Module,
 
         # Perform forward pass
         subject_id = data["subject_id"].unsqueeze(axis=1)
-        pref_vec = subject_wise_embedding(subject_id.type(torch.float32))
+        pref_vec = subject_wise_embedding(subject_id.type(torch.float32).to(device))
         #if optimise_subject_wise == True:
             #pref_vec = pref_vec.detach()
 
         # if its the last fold, store the queries for calibration model
+        #print("************* storing ******************{}%%%{}&&&{}=={}".format(fold,
+        #k_folds,epoch, num_epochs_cosine + intial_num_epochs))
         if fold == k_folds-1 and epoch == num_epochs_cosine + intial_num_epochs:
+            #print("************* storing ******************{}".format(epoch))
             outputs = gaze_model(data, pref_vec, store_queries=True)
         else:
             outputs = gaze_model(data, pref_vec, False)
@@ -129,7 +135,7 @@ def eval_epoch(
 
             # Perform forward pass
             subject_id = data["subject_id"].unsqueeze(axis=1)
-            pref_vec = subject_wise_embedding(subject_id.type(torch.float32))
+            pref_vec = subject_wise_embedding(subject_id.type(torch.float32).to(device))
 
             outputs = gaze_model(data, pref_vec, False)
 
@@ -224,7 +230,7 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                         subject_wise_embedding_optimizer,
                         None,
                         None,
-                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=5
+                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=k_folds
                         )
 
             eval_epoch(gaze_model,
@@ -232,7 +238,7 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                        evalloader,
                        gaze_loss_function,
                        subject_wise_embedding_loss_function,
-                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=5)
+                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=k_folds)
 
         # Adjust learning rate to 10^-4 and use cosine decay schedule
         gaze_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(gaze_model_optimizer, T_max=num_epochs_cosine, eta_min=0.0001)
@@ -394,9 +400,9 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
 
 if __name__ == '__main__':
     # dataset hdf files, grabcapture file can also be added
-    hdf_files = ["outputs_pgte/MPIIGaze1.h5"]
+    hdf_files = ["/content/drive/MyDrive/outputs_pgte/MPIIGaze1.h5"]
 
-    k_folds = 5
+    k_folds = 2
     for file in hdf_files:
         with h5py.File(file, 'r') as f:
             subject_id = 0
@@ -409,17 +415,17 @@ if __name__ == '__main__':
                     os.makedirs(output_dir)
                 # train for gaze model and get the queries for training the calibration model
                 queries, pref_vecs = train_gaze_model(group, output_dir, intial_num_epochs = 40, num_epochs_cosine = 40, person_id=person_id, k_folds=k_folds)
-
+                print(queries.shape)
                 # get the pref_vec from a trained subjectwise_embedding model
                 model_path = "{}/subjectwise_model-fold-{}.pth".format(output_dir, k_folds-1)
                 state_dict = torch.load(model_path)
-                subject_wise_embedding = SubjectWiseEmbedding(1,6,32)
+                subject_wise_embedding = SubjectWiseEmbedding(1,6,32).to(device)
                 subject_wise_embedding.load_state_dict(state_dict)
 
                 # for testing, ignore
                 #queries = torch.randn((72, 2008))
                 subject_id = torch.tensor(group["subject_id"][0]).unsqueeze(0).unsqueeze(0)
-                subject_id = subject_id.type(torch.float32)
+                subject_id = subject_id.type(torch.float32).to(device)
                 pref_vec = subject_wise_embedding(subject_id)
                 pref_vec = pref_vec.squeeze(0)
 
