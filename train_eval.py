@@ -323,7 +323,7 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
             optimizer.step()
 
             train_loss += loss.item()
-            print(train_loss)
+            #print(train_loss)
 
         # Adjust metrics to get average loss and accuracy per batch
         train_loss = train_loss / len(dataloader)
