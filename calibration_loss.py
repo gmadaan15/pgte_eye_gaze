@@ -38,4 +38,4 @@ class CalibrationLoss(nn.Module):
         # Compute the mean angular distance
         consistency_loss = torch.mean(angular_distances)
 
-        return self.weight * consistency_loss + mse_loss
+        return self.weight * consistency_loss + mse_loss if embeddings.shape[0] > 1 else 0.0
