@@ -4,6 +4,7 @@ from torch import nn
 from data import GazeModelDataset, CalibrationDataset
 import cv2 as cv
 import h5py
+
 torch.autograd.set_detect_anomaly(True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -15,6 +16,7 @@ feature_extractor.eval()
 
 feature_extractor.to(device)
 
+
 # model for subjectwiseembedding
 class SubjectWiseEmbedding(nn.Module):
     def __init__(self, input_features, out_features, hidden_units):
@@ -24,8 +26,10 @@ class SubjectWiseEmbedding(nn.Module):
             nn.ReLU(),
             nn.Linear(in_features=hidden_units, out_features=out_features),
         )
+
     def forward(self, subject_id):
         return self.linear_layer_stack(subject_id)
+
 
 # model for gaze
 class GazeModel(nn.Module):
@@ -44,19 +48,19 @@ class GazeModel(nn.Module):
         self.lin2 = torch.nn.Linear(hidden_units, output_features)
 
         # Initialize queries and pref_vecs properly
-        #self.register_buffer('queries', torch.empty(0, input_features + 6))  # Adjust size as needed
-        #self.register_buffer('pref_vecs', torch.empty(0, input_features))
+        # self.register_buffer('queries', torch.empty(0, input_features + 6))  # Adjust size as needed
+        # self.register_buffer('pref_vecs', torch.empty(0, input_features))
         self.queries = torch.tensor([])
         self.pref_vecs = torch.tensor([])
 
-    def forward(self, input, pref_vector, store_queries = False):
+    def forward(self, input, pref_vector, store_queries=False):
         face_features = feature_extractor(input["face"])
         eye_features = feature_extractor(input["eye"])
 
-        temp = torch.cat((face_features, eye_features, input["head_rot_mat"], input["origin"] ), axis=1)
+        temp = torch.cat((face_features, eye_features, input["head_rot_mat"], input["origin"]), axis=1)
 
         query = torch.cat((temp, input["gaze"]), axis=1)
-        
+
         # need to store for calibration
         if store_queries == True:
             # lets store the queries for calibration model
@@ -71,6 +75,7 @@ class GazeModel(nn.Module):
 
         return y3
 
+
 # some testing experiments to make sure that dimensions are known
 if __name__ == '__main__':
     hdf_files = ["outputs_pgte/MPIIGaze1.h5"]
@@ -80,7 +85,7 @@ if __name__ == '__main__':
             for person_id, group in f.items():
                 print('')
                 print('Processing %s/%s' % (file, person_id))
-                pgte_dataset = GazeModelDataset( group)
+                pgte_dataset = GazeModelDataset(group)
                 from torch.utils.data import DataLoader
 
                 train_dataloader_custom = DataLoader(dataset=pgte_dataset,  # use custom created train Dataset
@@ -96,30 +101,28 @@ if __name__ == '__main__':
                         print(val)
                 subject_wise_embedding = SubjectWiseEmbedding(1, 6, 32)
                 gaze_model = GazeModel(2011, 3, 2048)
-                print(out["subject_id"].unsqueeze(axis = 1))
-                subject_id = out["subject_id"].unsqueeze(axis = 1)
-                pref_vec = subject_wise_embedding(out["subject_id"].unsqueeze(axis = 1).type(torch.float32))
+                print(out["subject_id"].unsqueeze(axis=1))
+                subject_id = out["subject_id"].unsqueeze(axis=1)
+                pref_vec = subject_wise_embedding(out["subject_id"].unsqueeze(axis=1).type(torch.float32))
                 output = gaze_model(out, pref_vec)
                 queries = gaze_model.queries
                 pref_vecs = gaze_model.pref_vecs
 
                 calibration_dataset = CalibrationDataset(pref_vec, queries, 1)
-                calibration_dataloader = DataLoader(dataset=calibration_dataset, batch_size=2, num_workers=0, shuffle=True)
+                calibration_dataloader = DataLoader(dataset=calibration_dataset, batch_size=2, num_workers=0,
+                                                    shuffle=True)
                 out = next(iter(calibration_dataloader))
                 print(out[0].shape)
                 print(out[1].shape)
-                a = 1/0
+                a = 1 / 0
 
-
-                #preference_vector = torch.ones((1,6))
-                #face_features = feature_extractor(out["face"])
-                #print(face_features.shape)
-                #eye_features = feature_extractor(out["eye"])
-                #print(eye_features.shape)
-                #x = torch.cat((face_features, eye_features, out["head_rot_mat"], out["origin"], preference_vector), axis = 1)
+                # preference_vector = torch.ones((1,6))
+                # face_features = feature_extractor(out["face"])
+                # print(face_features.shape)
+                # eye_features = feature_extractor(out["eye"])
+                # print(eye_features.shape)
+                # x = torch.cat((face_features, eye_features, out["head_rot_mat"], out["origin"], preference_vector), axis = 1)
 
                 print(output.shape)
 
-
-
-                id+=1
+                id += 1
