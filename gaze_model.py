@@ -44,8 +44,10 @@ class GazeModel(nn.Module):
         self.lin2 = torch.nn.Linear(hidden_units, output_features)
 
         # Initialize queries and pref_vecs properly
-        self.register_buffer('queries', torch.empty(0, input_features + 6))  # Adjust size as needed
-        self.register_buffer('pref_vecs', torch.empty(0, input_features))
+        #self.register_buffer('queries', torch.empty(0, input_features + 6))  # Adjust size as needed
+        #self.register_buffer('pref_vecs', torch.empty(0, input_features))
+        self.queries = torch.tensor([])
+        self.pref_vecs = torch.tensor([])
 
     def forward(self, input, pref_vector, store_queries = False):
         face_features = feature_extractor(input["face"])
