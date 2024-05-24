@@ -4,28 +4,31 @@ from torch.utils.data import DataLoader, random_split
 from sklearn.model_selection import KFold, train_test_split
 from data import GazeModelDataset, CalibrationDataset
 from gaze_model import GazeModel, SubjectWiseEmbedding
-from huber_loss  import HuberLoss
+from huber_loss import HuberLoss
 from tqdm import tqdm
 from calibration_loss import CalibrationLoss
 from calibration_model import CalibrationModel
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 import h5py
 import os
 
+
 def reset_weights(m):
-  '''
-    Try resetting model weights to avoid
-    weight leakage.
-  '''
-  for layer in m.children():
-   if hasattr(layer, 'reset_parameters'):
-    print(f'Reset trainable parameters of layer = {layer}')
-    layer.reset_parameters()
+    '''
+      Try resetting model weights to avoid
+      weight leakage.
+    '''
+    for layer in m.children():
+        if hasattr(layer, 'reset_parameters'):
+            print(f'Reset trainable parameters of layer = {layer}')
+            layer.reset_parameters()
+
 
 def to_device(entry):
     for key, val in entry.items():
         entry[key] = entry[key].to(device)
-    
+
 
 def train_epoch(gaze_model: torch.nn.Module,
                 subject_wise_embedding: torch.nn.Module,
@@ -36,7 +39,7 @@ def train_epoch(gaze_model: torch.nn.Module,
                 subject_wise_embedding_optimizer: torch.optim.Optimizer,
                 gaze_scheduler: torch.optim.lr_scheduler,
                 subject_wise_embedding_scheduler: torch.optim.lr_scheduler,
-                fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise = False, k_folds=5
+                fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=False, k_folds=5
                 ):
     print("training for epoch:{}".format(epoch))
     # Put model in train mode
@@ -49,9 +52,9 @@ def train_epoch(gaze_model: torch.nn.Module,
 
     # Training with cosine decay schedule
     for i, data in enumerate(trainloader, 0):
-        #print(data)
+        # print(data)
         to_device(data)
-        #print(data)
+        # print(data)
         gts = data["gaze"].to(device)
 
         # Zero the gradients
@@ -62,14 +65,14 @@ def train_epoch(gaze_model: torch.nn.Module,
         # Perform forward pass
         subject_id = data["subject_id"].unsqueeze(axis=1)
         pref_vec = subject_wise_embedding(subject_id.type(torch.float32).to(device))
-        #if optimise_subject_wise == True:
-            #pref_vec = pref_vec.detach()
+        # if optimise_subject_wise == True:
+        # pref_vec = pref_vec.detach()
 
         # if its the last fold, store the queries for calibration model
-        #print("************* storing ******************{}%%%{}&&&{}=={}".format(fold,
-        #k_folds,epoch, num_epochs_cosine + intial_num_epochs))
-        if fold == k_folds-1 and epoch == num_epochs_cosine + intial_num_epochs:
-            #print("************* storing ******************{}".format(epoch))
+        # print("************* storing ******************{}%%%{}&&&{}=={}".format(fold,
+        # k_folds,epoch, num_epochs_cosine + intial_num_epochs))
+        if fold == k_folds - 1 and epoch == num_epochs_cosine + intial_num_epochs:
+            # print("************* storing ******************{}".format(epoch))
             outputs = gaze_model(data, pref_vec, store_queries=True)
         else:
             outputs = gaze_model(data, pref_vec, False)
@@ -92,7 +95,7 @@ def train_epoch(gaze_model: torch.nn.Module,
         if optimise_subject_wise == True:
             # llar for subjectwise embedding
             subject_wise_embedding_loss = subject_wise_embedding_loss_function(outputs, gts)
-            #subject_wise_embedding.requires_grad = True
+            # subject_wise_embedding.requires_grad = True
             subject_wise_embedding_loss.backward()
             subject_wise_embedding_optimizer.step()
             current_subject_embedding_loss += subject_wise_embedding_loss.item()
@@ -104,8 +107,8 @@ def train_epoch(gaze_model: torch.nn.Module,
 
     if optimise_subject_wise == True:
         print(
-        f'Epoch {epoch}/{num_epochs_cosine + intial_num_epochs}, Gaze Loss: {current_gaze_loss / len(trainloader)}, '
-        f'SubjectWise Loss:{current_subject_embedding_loss / len(trainloader)}')
+            f'Epoch {epoch}/{num_epochs_cosine + intial_num_epochs}, Gaze Loss: {current_gaze_loss / len(trainloader)}, '
+            f'SubjectWise Loss:{current_subject_embedding_loss / len(trainloader)}')
     else:
         print(f'Epoch {epoch}/{intial_num_epochs + num_epochs_cosine}, Gaze Loss: {current_gaze_loss}')
 
@@ -116,8 +119,8 @@ def eval_epoch(
         testloader: torch.utils.data.DataLoader,
         gaze_loss_function: torch.nn.Module,
         subject_wise_embedding_loss_function: torch.nn.Module,
-        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise = False, k_folds=5
-    ):
+        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=False, k_folds=5
+):
     print("evaluating for epoch: {}".format(epoch))
     # Put model in train mode
     gaze_model.eval()
@@ -132,7 +135,6 @@ def eval_epoch(
             to_device(data)
             gts = data["gaze"].to(device)
 
-
             # Perform forward pass
             subject_id = data["subject_id"].unsqueeze(axis=1)
             pref_vec = subject_wise_embedding(subject_id.type(torch.float32).to(device))
@@ -143,7 +145,6 @@ def eval_epoch(
             gaze_loss = gaze_loss_function(outputs, gts)
 
             current_gaze_loss += gaze_loss.item()
-
 
             if optimise_subject_wise == True:
                 subject_wise_embedding_loss = subject_wise_embedding_loss_function(outputs, gts)
@@ -157,10 +158,11 @@ def eval_epoch(
             print(f'Epoch {epoch}/{intial_num_epochs + num_epochs_cosine}, Gaze Loss: {current_gaze_loss}')
 
 
-def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_epochs_cosine = 40, train_batch_size = 16, eval_batch_size= 16, person_id = "p00"):
+def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs=40, num_epochs_cosine=40, train_batch_size=16,
+                     eval_batch_size=16, person_id="p00"):
     # Configuration options
     # hardcoded values are directly taken from paper
-    gaze_loss_function = HuberLoss(delta = 1.5)
+    gaze_loss_function = HuberLoss(delta=1.5)
     subject_wise_embedding_loss_function = torch.nn.MSELoss()
 
     # For fold results
@@ -210,16 +212,14 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
         gaze_model_optimizer = torch.optim.Adam(gaze_model.parameters(), lr=3 * 1e-4, betas=(0.9, 0.999), eps=1e-07,
                                                 weight_decay=0)
         # l2 regularisation for subjectwise embedding and this will be stepped after 40 epochs with lr = 10^(-4)
-        subject_wise_embedding_optimizer = torch.optim.Adam(subject_wise_embedding.parameters(), lr=1e-4, betas=(0.9, 0.999),
+        subject_wise_embedding_optimizer = torch.optim.Adam(subject_wise_embedding.parameters(), lr=1e-4,
+                                                            betas=(0.9, 0.999),
                                                             eps=1e-07, weight_decay=0.01)
 
-
         # Run the training loop for defined number of epochs
-        for epoch in tqdm(range(1, intial_num_epochs+1)):
-
+        for epoch in tqdm(range(1, intial_num_epochs + 1)):
             # Print epoch
             print(f'Starting epoch {epoch}')
-
 
             train_epoch(gaze_model,
                         subject_wise_embedding,
@@ -230,7 +230,7 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                         subject_wise_embedding_optimizer,
                         None,
                         None,
-                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=k_folds
+                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=False, k_folds=k_folds
                         )
 
             eval_epoch(gaze_model,
@@ -238,14 +238,17 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                        evalloader,
                        gaze_loss_function,
                        subject_wise_embedding_loss_function,
-                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise= False, k_folds=k_folds)
+                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=False, k_folds=k_folds)
 
         # Adjust learning rate to 10^-4 and use cosine decay schedule
-        gaze_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(gaze_model_optimizer, T_max=num_epochs_cosine, eta_min=0.0001)
-        subject_wise_embedding_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(subject_wise_embedding_optimizer, T_max=num_epochs_cosine, eta_min=0.0001)
+        gaze_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(gaze_model_optimizer, T_max=num_epochs_cosine,
+                                                                    eta_min=0.0001)
+        subject_wise_embedding_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(subject_wise_embedding_optimizer,
+                                                                                      T_max=num_epochs_cosine,
+                                                                                      eta_min=0.0001)
 
         # after 40 epochs, train with different settings and also optimise subjectwise
-        for epoch in tqdm(range(intial_num_epochs+1, intial_num_epochs+ num_epochs_cosine+1)):
+        for epoch in tqdm(range(intial_num_epochs + 1, intial_num_epochs + num_epochs_cosine + 1)):
             # Print epoch
             print(f'Starting epoch {epoch}')
 
@@ -258,7 +261,7 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                         subject_wise_embedding_optimizer,
                         gaze_scheduler,
                         subject_wise_embedding_scheduler,
-                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=True
+                        fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=True, k_folds=k_folds
                         )
 
             eval_epoch(gaze_model,
@@ -266,10 +269,10 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
                        evalloader,
                        gaze_loss_function,
                        subject_wise_embedding_loss_function,
-                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=True)
+                       fold, epoch, num_epochs_cosine, intial_num_epochs, optimise_subject_wise=True, k_folds=k_folds)
 
         # if this is the last fold, just save the queries and pref_vecs for the calibration model to train.
-        if fold == k_folds-1:
+        if fold == k_folds - 1:
             queries = gaze_model.queries
             pref_vecs = gaze_model.pref_vecs
 
@@ -285,11 +288,12 @@ def train_gaze_model(group, output_dir, k_folds=5, intial_num_epochs = 40, num_e
     return queries, pref_vecs
 
 
-def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_size = 16, eval_batch_size= 16, person_id = "p00", s=16):
+def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_size=16, eval_batch_size=16,
+                      person_id="p00", s=16):
     def train_epoch(model: torch.nn.Module,
-                   dataloader: torch.utils.data.DataLoader,
-                   loss_fn: torch.nn.Module,
-                   optimizer: torch.optim.Optimizer):
+                    dataloader: torch.utils.data.DataLoader,
+                    loss_fn: torch.nn.Module,
+                    optimizer: torch.optim.Optimizer):
         # Put model in train mode
         model.train()
 
@@ -300,32 +304,34 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
         for batch, (X, y) in enumerate(dataloader):
             # Send data to target device
             X, y = X.to(device), y.to(device)
+            # print(X.shape)
 
             # 1. Forward pass
             y_pred = model(X)
 
             # 2. Calculate  and accumulate loss
             loss = loss_fn(y_pred, y)
-
+            # print(loss.item())
 
             # 3. Optimizer zero grad
             optimizer.zero_grad()
 
             # 4. Loss backward
-            loss.backward(retain_graph = True)
+            loss.backward(retain_graph=True)
 
             # 5. Optimizer step
             optimizer.step()
 
             train_loss += loss.item()
+            print(train_loss)
 
         # Adjust metrics to get average loss and accuracy per batch
         train_loss = train_loss / len(dataloader)
         return train_loss
 
     def eval_epoch(model: torch.nn.Module,
-                  dataloader: torch.utils.data.DataLoader,
-                  loss_fn: torch.nn.Module):
+                   dataloader: torch.utils.data.DataLoader,
+                   loss_fn: torch.nn.Module):
         # Put model in eval mode
         model.eval()
 
@@ -357,28 +363,29 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
     eval_size = len(dataset) - train_size
     train_dataset, eval_dataset = random_split(dataset, [train_size, eval_size])
 
-    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False)
+    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, drop_last=True)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False, drop_last=True)
 
-    model = CalibrationModel(in_features = 2008, out_features=6, hidden_units=2048, num_heads=4, num_encoder_layers=6, num_queries=s).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=3 * 1e-4, betas=(0.9, 0.999), eps=1e-07,weight_decay=0)
+    model = CalibrationModel(in_features=2008, out_features=6, hidden_units=2048, num_heads=4, num_encoder_layers=6,
+                             num_queries=s).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3 * 1e-4, betas=(0.9, 0.999), eps=1e-07, weight_decay=0)
 
     results = {"train_loss": [],
                "eval_loss": []
                }
     # Training for Calibration Model
 
-    for epoch in tqdm(range(1, num_epochs+1)):
+    for epoch in tqdm(range(1, num_epochs + 1)):
         print("training for epoch:{}".format(epoch))
         train_loss = train_epoch(model=model,
-                                           dataloader=train_dataloader,
-                                           loss_fn=loss_function,
-                                           optimizer=optimizer)
+                                 dataloader=train_dataloader,
+                                 loss_fn=loss_function,
+                                 optimizer=optimizer)
 
         print("evaluating for epoch: {}".format(epoch))
         eval_loss = eval_epoch(model=model,
-                                        dataloader=eval_dataloader,
-                                        loss_fn=loss_function)
+                               dataloader=eval_dataloader,
+                               loss_fn=loss_function)
 
         # 4. Print out what's happening
         print(
@@ -397,12 +404,11 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
     return results
 
 
-
 if __name__ == '__main__':
     # dataset hdf files, grabcapture file can also be added
     hdf_files = ["/content/drive/MyDrive/outputs_pgte/MPIIGaze1.h5"]
 
-    k_folds = 5
+    k_folds = 2
     for file in hdf_files:
         with h5py.File(file, 'r') as f:
             subject_id = 0
@@ -414,24 +420,26 @@ if __name__ == '__main__':
                 if not os.path.isdir(output_dir):
                     os.makedirs(output_dir)
                 # train for gaze model and get the queries for training the calibration model
-                queries, pref_vecs = train_gaze_model(group, output_dir, intial_num_epochs = 40, num_epochs_cosine = 40, person_id=person_id, k_folds=k_folds)
+                queries, pref_vecs = train_gaze_model(group, output_dir, intial_num_epochs=40, num_epochs_cosine=40,
+                                                      person_id=person_id, k_folds=k_folds)
                 print(queries.shape)
                 # get the pref_vec from a trained subjectwise_embedding model
-                model_path = "{}/subjectwise_model-fold-{}.pth".format(output_dir, k_folds-1)
+                model_path = "{}/subjectwise_model-fold-{}.pth".format(output_dir, k_folds - 1)
                 state_dict = torch.load(model_path)
-                subject_wise_embedding = SubjectWiseEmbedding(1,6,32).to(device)
+                subject_wise_embedding = SubjectWiseEmbedding(1, 6, 32).to(device)
                 subject_wise_embedding.load_state_dict(state_dict)
 
                 # for testing, ignore
-                #queries = torch.randn((72, 2008))
+                # queries = torch.randn((72, 2008))
                 subject_id = torch.tensor(group["subject_id"][0]).unsqueeze(0).unsqueeze(0)
                 subject_id = subject_id.type(torch.float32).to(device)
                 pref_vec = subject_wise_embedding(subject_id)
                 pref_vec = pref_vec.squeeze(0)
 
                 # run the training for calibration
-                results = train_calib_model(queries=queries, pref_vecs=pref_vec, output_dir=output_dir, num_epochs=2, train_batch_size = 2, eval_batch_size= 2, person_id = "p00", s=16)
-                subject_id+=1
+                results = train_calib_model(queries=queries, pref_vecs=pref_vec, output_dir=output_dir, num_epochs=2,
+                                            train_batch_size=8, eval_batch_size=8, person_id="p00", s=16)
+                subject_id += 1
 
 
 
