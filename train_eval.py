@@ -323,7 +323,7 @@ def train_calib_model(queries, pref_vecs, output_dir, num_epochs=1, train_batch_
             optimizer.step()
 
             train_loss += loss.item()
-            #print(train_loss)
+            # print(train_loss)
 
         # Adjust metrics to get average loss and accuracy per batch
         train_loss = train_loss / len(dataloader)
@@ -423,6 +423,9 @@ if __name__ == '__main__':
                 queries, pref_vecs = train_gaze_model(group, output_dir, intial_num_epochs=40, num_epochs_cosine=40,
                                                       person_id=person_id, k_folds=k_folds)
                 print(queries.shape)
+
+                torch.save(queries, "{}/queries.pth".format(output_dir))
+                '''
                 # get the pref_vec from a trained subjectwise_embedding model
                 model_path = "{}/subjectwise_model-fold-{}.pth".format(output_dir, k_folds - 1)
                 state_dict = torch.load(model_path)
@@ -439,6 +442,7 @@ if __name__ == '__main__':
                 # run the training for calibration
                 results = train_calib_model(queries=queries, pref_vecs=pref_vec, output_dir=output_dir, num_epochs=2,
                                             train_batch_size=8, eval_batch_size=8, person_id="p00", s=16)
+                '''
                 subject_id += 1
 
 
